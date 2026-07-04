@@ -25,7 +25,7 @@ export default function Home() {
         setUser(u);
         setAuthState("authed");
       })
-      .catch(() => router.replace("/login"));
+      .catch(() => router.replace("/dce/login"));
   }, [router]);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function Home() {
 
   function onLogout() {
     logout();
-    router.replace("/login");
+    router.replace("/dce/login");
   }
 
   if (authState === "checking") {
@@ -87,7 +87,7 @@ export default function Home() {
         )}
         {error && (
           <p className="muted mono" style={{ marginTop: 10 }}>
-            {error} — lancez le backend (docker compose up).
+            {error}
           </p>
         )}
       </div>

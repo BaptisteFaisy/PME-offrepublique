@@ -6,7 +6,6 @@
 .env
 .env.local
 backend/.env
-frontend/.env.local
 
 # --- python ---
 __pycache__/
@@ -20,8 +19,8 @@ venv/
 
 # --- node / next ---
 node_modules/
-frontend/.next/
-frontend/out/
+.next/
+out/
 npm-debug.log*
 *.tsbuildinfo
 

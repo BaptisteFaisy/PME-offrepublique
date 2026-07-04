@@ -17,12 +17,12 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await login(user.trim(), password);
-      router.replace("/");
+      router.replace("/dce");
     } catch (err) {
       setError(
         err instanceof Error && err.message !== "Failed to fetch"
           ? err.message
-          : "Backend injoignable — lancez « docker compose up ».",
+          : "Backend injoignable.",
       );
     } finally {
       setBusy(false);

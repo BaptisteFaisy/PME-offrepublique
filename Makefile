@@ -22,11 +22,11 @@ backend-test:  ## Run backend tests in the container
 backend-lint:  ## Lint the backend
 	docker compose run --rm backend ruff check app tests
 
-front-install: ## Install frontend deps
-	cd frontend && npm install
+front-install: ## Install web deps (site + internal /dce console)
+	cd site-presentation && npm install
 
-front-dev:     ## Run the Next.js dev server
-	cd frontend && npm run dev
+front-dev:     ## Run the Next.js dev server (marketing site + /dce console)
+	cd site-presentation && npm run dev
 
-front-build:   ## Production build of the frontend
-	cd frontend && npm run build
+front-build:   ## Production build of the web app
+	cd site-presentation && npm run build

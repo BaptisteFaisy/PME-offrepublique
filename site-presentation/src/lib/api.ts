@@ -3,6 +3,10 @@
 // The internal tool has two users (CDC), and the backend uses HTTP Basic. We
 // store the base64 `user:pass` token client-side and attach it to API calls.
 // Fine for a two-person internal console; revisit if the user base ever grows.
+//
+// The console is served by this site under /dce but calls the API on its own
+// origin, so NEXT_PUBLIC_API_URL must point at the backend service (and that
+// origin must be allowed by the backend's CORS_ALLOW_ORIGINS).
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
