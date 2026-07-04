@@ -1,65 +1,39 @@
-// LLM access for the M1 pipeline (server-only).
+// Claude API access for the M1 pipeline (server-only).
 //
-// Thin wrapper around the OpenAI TypeScript SDK, pointed by default at the local
-// OpenAI-compatible server exposed by `openai-api-server-via-codex` (see config.ts,
-// DCE_LLM_BASE_URL — default http://127.0.0.1:18080/v1) so it drives Codex-backed
-// GPT models. Point DCE_LLM_BASE_URL at any other OpenAI-compatible endpoint
-// (including https://api.openai.com/v1) to switch providers.
+// Thin wrapper around the Anthropic TypeScript SDK. Two entry points:
+// - completeText  — short free-text answer (piece classification).
+// - completeJson  — schema-constrained JSON (Fiche AO extraction) via structured
+//   outputs (output_config.format), with a prompt-only fallback if the model
+//   rejects the constraint.
 //
-// Two entry points:
-// - completeText — short free-text answer (piece classification).
-// - completeJson — schema-constrained JSON (Fiche AO extraction) via structured
-//   outputs (response_format: json_schema), degrading to plain JSON mode and then
-//   a prompt-only call if the endpoint rejects the constraint. parseJson tolerates
-//   a code fence in every case.
-//
-// The model is picked in config.ts (DCE_LLM_MODEL, default gpt-5.5). Reasoning is
-// pinned to "xhigh" for maximum extraction quality (override the constant below if
-// cost becomes a concern — xhigh burns significantly more completion tokens).
+// The CDC picks Sonnet for cost/quality (config.ts, DCE_LLM_MODEL). Thinking is
+// disabled to keep per-DCE cost under the CDC budget (< 3 € LLM+OCR).
 
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 import { getSettings, type DceSettings } from "./config";
 
 export class LLMError extends Error {}
 
-// Extra-high reasoning: the Fiche AO extraction and source-grounding are the value
-// of M1, so we spend the deliberation budget. Note xhigh consumes many completion
-// tokens before the answer — token caps (below / config.maxTokens) must stay large.
-const REASONING_EFFORT = "xhigh" as const;
+let cachedClient: Anthropic | null = null;
 
-let cachedClient: OpenAI | null = null;
-let cachedClientKey = "";
-
-function getClient(settings: DceSettings): OpenAI {
-  // The local Codex server ignores auth unless started with --api-key, but the
-  // OpenAI SDK still requires a non-empty key — hence the "local" placeholder.
-  const apiKey = settings.apiKey || "local";
-  const clientKey = `${settings.baseUrl} ${apiKey}`;
-  if (!cachedClient || cachedClientKey !== clientKey) {
-    cachedClient = new OpenAI({
-      apiKey,
-      baseURL: settings.baseUrl || undefined,
-    });
-    cachedClientKey = clientKey;
+function getClient(settings: DceSettings): Anthropic {
+  if (!settings.anthropicApiKey) {
+    throw new LLMError(
+      "ANTHROPIC_API_KEY manquant — l'extraction Fiche AO nécessite la clé Claude.",
+    );
+  }
+  if (!cachedClient) {
+    cachedClient = new Anthropic({ apiKey: settings.anthropicApiKey });
   }
   return cachedClient;
 }
 
-function messageText(completion: OpenAI.Chat.Completions.ChatCompletion): string {
-  return completion.choices[0]?.message?.content ?? "";
-}
-
-/** Turn an unreachable-endpoint error into an actionable message. */
-function toFriendly(err: unknown, settings: DceSettings): unknown {
-  if (err instanceof OpenAI.APIConnectionError) {
-    const url = settings.baseUrl || "https://api.openai.com/v1";
-    return new LLMError(
-      `Serveur LLM injoignable sur ${url} — démarre \`openai-api-server-via-codex\` ` +
-        "ou configure DCE_LLM_BASE_URL vers un endpoint compatible OpenAI accessible.",
-    );
-  }
-  return err;
+function responseText(message: Anthropic.Message): string {
+  return message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
 }
 
 /** Parse a JSON object out of a model response (tolerates code fences). */
@@ -85,21 +59,14 @@ export async function completeText(
   opts: { settings?: DceSettings; maxTokens?: number } = {},
 ): Promise<string> {
   const settings = opts.settings ?? getSettings();
-  try {
-    const completion = await getClient(settings).chat.completions.create({
-      model: settings.model,
-      // Answer is one word, but xhigh reasoning needs headroom before it emits.
-      max_completion_tokens: opts.maxTokens ?? 4096,
-      reasoning_effort: REASONING_EFFORT,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    });
-    return messageText(completion).trim();
-  } catch (err) {
-    throw toFriendly(err, settings);
-  }
+  const message = await getClient(settings).messages.create({
+    model: settings.model,
+    max_tokens: opts.maxTokens ?? 64,
+    system,
+    thinking: { type: "disabled" },
+    messages: [{ role: "user", content: user }],
+  });
+  return responseText(message).trim();
 }
 
 export async function completeJson(
@@ -111,46 +78,24 @@ export async function completeJson(
   const settings = opts.settings ?? getSettings();
   const client = getClient(settings);
 
-  const base: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+  const base = {
     model: settings.model,
-    max_completion_tokens: settings.maxTokens,
-    reasoning_effort: REASONING_EFFORT,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
+    max_tokens: settings.maxTokens,
+    system,
+    thinking: { type: "disabled" as const },
+    messages: [{ role: "user" as const, content: user }],
   };
 
   try {
-    // 1) Structured outputs — steer the model with the Fiche AO JSON schema.
-    try {
-      const completion = await client.chat.completions.create({
-        ...base,
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "fiche_ao", schema, strict: false },
-        },
-      });
-      return parseJson(messageText(completion));
-    } catch (err) {
-      if (!(err instanceof OpenAI.BadRequestError)) throw err;
-    }
-
-    // 2) Generic JSON mode — endpoint rejected the schema constraint.
-    try {
-      const completion = await client.chat.completions.create({
-        ...base,
-        response_format: { type: "json_object" },
-      });
-      return parseJson(messageText(completion));
-    } catch (err) {
-      if (!(err instanceof OpenAI.BadRequestError)) throw err;
-    }
-
-    // 3) Prompt-only — endpoint rejected response_format entirely.
-    const completion = await client.chat.completions.create(base);
-    return parseJson(messageText(completion));
+    const message = await client.messages.create({
+      ...base,
+      output_config: { format: { type: "json_schema", schema } },
+    });
+    return parseJson(responseText(message));
   } catch (err) {
-    throw toFriendly(err, settings);
+    // Fall back to prompt-only JSON if the schema constraint is rejected.
+    if (!(err instanceof Anthropic.BadRequestError)) throw err;
+    const message = await client.messages.create(base);
+    return parseJson(responseText(message));
   }
 }

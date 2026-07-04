@@ -1,3 +1,0 @@
-# Shell scripts must stay LF or they break `sh` on Linux (Railway builds).
-*.sh text eol=lf
-entrypoint.sh text eol=lf
