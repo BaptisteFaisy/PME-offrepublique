@@ -50,9 +50,18 @@ class Settings(BaseSettings):
     # Auth (two internal users, per the CDC). "user:pass,user:pass".
     basic_auth_users: str = "baptiste:changeme,liquid:changeme"
 
+    # CORS — browser origins allowed to call the API (comma-separated). The
+    # console is served from the presentation site's origin (via the /dce zone),
+    # so in prod this must include that public domain.
+    cors_allow_origins: str = "http://localhost:3000"
+
     @property
     def is_dev(self) -> bool:
         return self.app_env == "dev"
+
+    def cors_origins(self) -> list[str]:
+        """Parse CORS_ALLOW_ORIGINS into a list of allowed browser origins."""
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
     def auth_credentials(self) -> dict[str, str]:
         """Parse BASIC_AUTH_USERS into a {username: password} map."""
