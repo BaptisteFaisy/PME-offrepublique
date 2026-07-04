@@ -1,30 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { consoleUser, proxyPost, unauthorized } from "@/lib/backend";
+import { consoleUser, unauthorized } from "@/lib/dce/guard";
+import { startProcessing } from "@/lib/dce/pipeline";
+import { createUpload, newId, saveRaw } from "@/lib/dce/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// POST /dce/api/uploads — accept the DCE upload and forward it to the backend
-// (POST /dce), which stores it and enqueues the M1 parse job.
+const ALLOWED = [".zip", ".pdf", ".docx", ".xlsx"];
+
+// POST /dce/api/uploads — accept the DCE upload, store it, and kick off the M1
+// parse job in the background. The client polls the status endpoint until ready.
 export async function POST(req: NextRequest) {
   if (!consoleUser(req)) return unauthorized();
 
-  let inForm: FormData;
+  let form: FormData;
   try {
-    inForm = await req.formData();
+    form = await req.formData();
   } catch {
     return NextResponse.json({ detail: "Requête invalide (multipart attendu)." }, { status: 400 });
   }
 
-  const file = inForm.get("file");
+  const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ detail: "Champ 'file' manquant." }, { status: 400 });
   }
 
-  // Rebuild a clean FormData so fetch sets the multipart boundary itself.
-  const outForm = new FormData();
-  outForm.append("file", file, file.name);
+  const name = file.name || "upload.bin";
+  if (!ALLOWED.some((s) => name.toLowerCase().endsWith(s))) {
+    return NextResponse.json(
+      { detail: `Format non supporté. Attendu: ${ALLOWED.join(", ")}` },
+      { status: 415 },
+    );
+  }
 
-  return proxyPost(req, "/dce", outForm);
+  const buf = Buffer.from(await file.arrayBuffer());
+  if (buf.length === 0) {
+    return NextResponse.json({ detail: "Fichier vide" }, { status: 400 });
+  }
+
+  const id = newId();
+  await saveRaw(id, buf);
+  await createUpload(id, name);
+  startProcessing(id);
+
+  return NextResponse.json({ upload_id: id, status: "received", job_id: id }, { status: 202 });
 }

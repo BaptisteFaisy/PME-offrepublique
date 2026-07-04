@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# M1 local data store (uploads, extracted pages, fiches) — dev only
+/.dce-data
