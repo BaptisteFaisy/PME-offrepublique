@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMe, getReady, logout, type ReadyStatus } from "@/lib/api";
+import { getMe, logout } from "@/lib/api";
 
 const MODULES = [
   { id: "M1", label: "Ingestion & analyse du DCE → Fiche AO + go/no-go" },
@@ -15,10 +15,8 @@ export default function Home() {
   const router = useRouter();
   const [authState, setAuthState] = useState<"checking" | "authed">("checking");
   const [user, setUser] = useState<string | null>(null);
-  const [ready, setReady] = useState<ReadyStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  // Auth gate: no valid token -> bounce to the login page.
+  // Auth gate: no valid session -> bounce to the login page.
   useEffect(() => {
     getMe()
       .then((u) => {
@@ -28,15 +26,8 @@ export default function Home() {
       .catch(() => router.replace("/dce/login"));
   }, [router]);
 
-  useEffect(() => {
-    if (authState !== "authed") return;
-    getReady()
-      .then(setReady)
-      .catch((e) => setError(e.message));
-  }, [authState]);
-
-  function onLogout() {
-    logout();
+  async function onLogout() {
+    await logout();
     router.replace("/dce/login");
   }
 
@@ -63,33 +54,6 @@ export default function Home() {
         <button className="btn ghost" onClick={onLogout}>
           Déconnexion
         </button>
-      </div>
-
-      <div className="card">
-        <strong>État du backend</strong>
-        <div style={{ marginTop: 10 }}>
-          {error && <span className="pill warn">injoignable</span>}
-          {!error && !ready && <span className="muted">vérification…</span>}
-          {ready && (
-            <span className={`pill ${ready.status === "ok" ? "ok" : "warn"}`}>
-              {ready.status}
-            </span>
-          )}
-        </div>
-        {ready && (
-          <ul className="mono" style={{ marginTop: 12 }}>
-            {Object.entries(ready.checks).map(([k, v]) => (
-              <li key={k}>
-                {k}: {v}
-              </li>
-            ))}
-          </ul>
-        )}
-        {error && (
-          <p className="muted mono" style={{ marginTop: 10 }}>
-            {error}
-          </p>
-        )}
       </div>
 
       <div className="card">

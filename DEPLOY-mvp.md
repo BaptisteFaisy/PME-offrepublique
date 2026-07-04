@@ -1,61 +1,42 @@
-# Deploying the internal MVP at `https://<site>/dce`
+# Deploying the internal console at `https://<site>/dce`
 
-The internal console lives **inside the presentation site** (`site-presentation/src/app/dce/`), served
-on the same origin under `/dce`. So there are only **2 services** in the single Railway environment:
+**One service. One environment.** The marketing site and the internal console are the same Next.js
+app (`site-presentation`). The console lives at `/dce` (`src/app/dce/`) and handles its own login via
+same-origin server route handlers (`src/app/dce/api/*` + `src/lib/auth.ts`) — **no separate backend,
+no CORS, no `NEXT_PUBLIC_API_URL`.**
 
 ```
 web (site-presentation)   https://<site>/       → marketing site
                           https://<site>/dce    → login → internal console
-                                │  browser JS calls NEXT_PUBLIC_API_URL
-api (backend, FastAPI)  ◄───────┘  (cross-origin → CORS)
+                          https://<site>/dce/api/{login,me,logout}  → auth (server, same origin)
 ```
 
-Login (`GET /auth/me`) is env-based HTTP Basic and needs no DB/Redis, so `login → console` works with
-just these two services. `/ready` will show **degraded** until Postgres/Redis are added later (M1+).
+## Provisioning (Railway) — a single variable
 
-> ⚠️ **Security:** `/dce` is public. Set a strong `BASIC_AUTH_USERS` on the **api** service —
-> never ship the `baptiste:changeme` placeholder.
+You already have the **web** service. To make the login work, set **one** variable on it:
 
-## Provisioning (Railway dashboard, same GitHub repo)
+| Key | Value | Notes |
+|---|---|---|
+| `DCE_AUTH_USERS` | `user1:STRONG_PASS_1,user2:STRONG_PASS_2` | The console login credentials. |
 
-You already have the **web** service (site-presentation). You add **one** new service (the api) and
-**one** variable on the web service.
+- **Runtime** variable (read server-side on each request), **not** build-time → changing it does **not**
+  require a rebuild, and it is **never** sent to the browser.
+- Format: `user:pass` pairs separated by commas. No comma inside a password; ASCII only.
+- ⚠️ `/dce` is public — use strong passwords. If `DCE_AUTH_USERS` is unset in production, **nobody can
+  log in** (there is no default outside dev).
 
-### 1. API service (backend, FastAPI) — new
-- **New service → Deploy from GitHub repo** `BaptisteFaisy/PME-offrepublique`.
-- **Settings → Root Directory = `backend`** (builds `backend/Dockerfile`; `backend/railway.json` pins
-  the Dockerfile builder + `/health` healthcheck).
-- **Variables:**
-  | Key | Value |
-  |---|---|
-  | `APP_ENV` | `prod` |
-  | `BASIC_AUTH_USERS` | `user1:STRONG_PASS_1,user2:STRONG_PASS_2` |
-  | `CORS_ALLOW_ORIGINS` | `https://<site-domain>` (the web service's public domain) |
-- **Settings → Networking → Generate Domain** → note it as `<api-url>`.
+Then open `https://<site>/dce` → login with a pair → console. That's it.
 
-### 2. Web service (site-presentation) — existing
-- **Variables:** add `NEXT_PUBLIC_API_URL = https://<api-url>`.
-  This is inlined into the client bundle at **build** time, so **redeploy** after setting it.
-
-### 3. Verify
-- `https://<site>/dce` → login → (a `BASIC_AUTH_USERS` pair) → **console**.
-- The console's backend panel shows **`degraded`** — expected in this minimal deploy (no DB/Redis).
-- `https://<site>/` (marketing site) unchanged.
-
-## Later: full stack for M1–M4
-Add these to the project and set the matching vars on the api (+ a worker) service:
-- **Postgres + pgvector** → `DATABASE_URL` (pgvector-capable image/template).
-- **Redis** → `REDIS_URL`, plus a **worker** service (root `backend`, start `python -m app.workers.worker`).
-- **S3-compatible storage** (Railway has no native S3 — Scaleway/OVH or a MinIO service) →
-  `S3_ENDPOINT_URL`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_DCE`.
-- **Anthropic** → `ANTHROPIC_API_KEY`.
-
-## Local run (before pushing)
+## Local dev
 ```bash
-docker compose up                       # backend API on :8000
-cd site-presentation && npm run dev      # site on :3000
-# open http://localhost:3000/dce → login → console
-# (login needs the backend; set frontend NEXT_PUBLIC_API_URL if not localhost:8000)
+cd site-presentation && npm run dev     # http://localhost:3000/dce
 ```
-The console reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). To point the local site at a
-different API, create `site-presentation/.env.local` with `NEXT_PUBLIC_API_URL=...`.
+Login uses `DCE_AUTH_USERS` from `site-presentation/.env.local` (copy `.env.local.example`).
+If unset in dev, a fallback of `baptiste:changeme` applies (dev only).
+
+## Later: the Python backend (M1–M4)
+The real engine — DCE ingestion, LLM extraction, mémoire technique, storage, workers — is the FastAPI
+app in `backend/` (kept in the repo, currently **not deployed**). When M1 starts, deploy it as a second
+service (root `backend`, its `railway.json` + `$PORT` + CORS env are already prepared) plus Postgres +
+pgvector, Redis, and S3 storage, and wire the console's data calls to it. The `/dce` login can then
+either keep the Next-side session or forward it to the backend's HTTP Basic auth.

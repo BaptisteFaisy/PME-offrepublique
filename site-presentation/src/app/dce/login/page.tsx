@@ -19,11 +19,7 @@ export default function LoginPage() {
       await login(user.trim(), password);
       router.replace("/dce");
     } catch (err) {
-      setError(
-        err instanceof Error && err.message !== "Failed to fetch"
-          ? err.message
-          : "Backend injoignable.",
-      );
+      setError(err instanceof Error ? err.message : "Erreur, réessayez.");
     } finally {
       setBusy(false);
     }
