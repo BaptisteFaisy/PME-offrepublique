@@ -9,9 +9,13 @@ import path from "node:path";
 export type DceSettings = {
   /** Directory for the file-based store (uploads, pages, fiches). */
   dataDir: string;
-  /** Anthropic API key. Required for classification + Fiche AO extraction. */
-  anthropicApiKey: string;
-  /** Claude model for classification + extraction (CDC §5 picks Sonnet for cost). */
+  /** LLM API key (z.ai / any Anthropic-compatible endpoint). Required for
+   *  classification + Fiche AO extraction. */
+  apiKey: string;
+  /** Base URL of the Anthropic-compatible endpoint. Empty string = official
+   *  Anthropic API (api.anthropic.com). Defaults to z.ai's endpoint. */
+  baseUrl: string;
+  /** Model id for classification + extraction (z.ai default: glm-4.6). */
   model: string;
   /** Max output tokens for the extraction JSON. */
   maxTokens: number;
@@ -24,8 +28,11 @@ export type DceSettings = {
 export function getSettings(): DceSettings {
   return {
     dataDir: process.env.DCE_DATA_DIR ?? path.join(process.cwd(), ".dce-data"),
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
-    model: process.env.DCE_LLM_MODEL ?? "claude-sonnet-5",
+    // DCE_LLM_API_KEY is the provider-neutral name; ANTHROPIC_API_KEY kept as a
+    // fallback so existing deploys keep working.
+    apiKey: process.env.DCE_LLM_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? "",
+    baseUrl: process.env.DCE_LLM_BASE_URL ?? "https://api.z.ai/api/anthropic",
+    model: process.env.DCE_LLM_MODEL ?? "glm-4.6",
     maxTokens: Number(process.env.DCE_LLM_MAX_TOKENS ?? 8000),
     ocrMinChars: Number(process.env.DCE_OCR_MIN_CHARS ?? 120),
     maxContextChars: Number(process.env.DCE_MAX_CONTEXT_CHARS ?? 350_000),

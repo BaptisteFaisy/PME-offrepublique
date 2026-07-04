@@ -20,8 +20,9 @@ never sent to the browser; changing them needs no rebuild):
 | Key | Value | Notes |
 |---|---|---|
 | `DCE_AUTH_USERS` | `user1:STRONG_PASS_1,user2:STRONG_PASS_2` | Console login credentials. `/dce` is public — use strong passwords. If unset in prod, **nobody can log in**. No comma in a password; ASCII only. |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` | **Required for M1.** Piece classification + Fiche AO extraction. Without it, upload+extraction still work but the Fiche step fails with a clear message. |
-| `DCE_LLM_MODEL` | `claude-sonnet-5` | Optional. Claude model for extraction (CDC picks Sonnet for cost). Use `claude-opus-4-8` for higher accuracy. |
+| `DCE_LLM_API_KEY` | `xxxxxxxx.yyyyyyyy` (z.ai) | **Required for M1.** LLM key for piece classification + Fiche AO extraction. By default the engine talks to z.ai (GLM). Without it, upload+extraction still work but the Fiche step fails with a clear message. `ANTHROPIC_API_KEY` is honoured as a fallback. |
+| `DCE_LLM_BASE_URL` | `https://api.z.ai/api/anthropic` | Optional. Anthropic-compatible endpoint (default = z.ai). Set to empty to use the official Anthropic API with a Claude key + model. |
+| `DCE_LLM_MODEL` | `glm-4.6` | Optional. z.ai default is `glm-4.6`; use `glm-4.5-air` for lower cost, or a `claude-*` id when `DCE_LLM_BASE_URL` points at Anthropic. |
 | `DCE_DATA_DIR` | `/data` | Optional but recommended. Path to a **mounted Railway volume** for the M1 file store (uploads, extracted pages, fiches). Without a volume, records live in the container fs and are lost on redeploy. |
 
 Then open `https://<site>/dce` → login with a pair → upload a DCE → Fiche AO + go/no-go. That's it.
@@ -35,7 +36,7 @@ If unset in dev, a fallback of `baptiste:changeme` applies (dev only).
 
 ## M1 runs inside the web app (no separate service)
 The M1 engine — DCE ingestion, page-anchored extraction, classification, two-pass Fiche AO extraction
-via the Claude API, and go/no-go — is implemented in TypeScript inside this app
+via the LLM (z.ai / GLM by default, over its Anthropic-compatible API), and go/no-go — is implemented in TypeScript inside this app
 (`src/lib/dce/*`, exposed by the route handlers under `src/app/dce/api/uploads/*`). Long jobs run in
 the background on the Node server (`next start`) and the client polls; results persist to the
 `DCE_DATA_DIR` file store. This keeps the MVP a single deployable that ships on push to main.

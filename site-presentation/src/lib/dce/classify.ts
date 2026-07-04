@@ -67,7 +67,7 @@ export async function classifyPiece(
   const byName = classifyByFilename(filename);
   if (byName !== null) return byName;
 
-  if (!useLlm || !firstPageText || !firstPageText.trim() || !settings.anthropicApiKey) {
+  if (!useLlm || !firstPageText || !firstPageText.trim() || !settings.apiKey) {
     return "inconnu";
   }
 

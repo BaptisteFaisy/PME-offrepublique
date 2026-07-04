@@ -1,7 +1,7 @@
 // Fiche AO — the target extraction schema (CDC §4, M1).
 //
 // The JSON Schema is the contract for the two-pass LLM extraction and drives
-// Claude structured outputs (output_config.format). It stays within the
+// structured outputs (output_config.format). It stays within the
 // structured-outputs subset: additionalProperties:false everywhere, explicit
 // required, nullability via ["type","null"], no min/max/format keywords.
 //
