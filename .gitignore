@@ -1,0 +1,29 @@
+.mcp.json
+.agentsroom/handoff-transcript-*.txt
+.agentsroom/handoff-summary-*.md
+
+# --- secrets / env ---
+.env
+.env.local
+backend/.env
+frontend/.env.local
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- node / next ---
+node_modules/
+frontend/.next/
+frontend/out/
+npm-debug.log*
+*.tsbuildinfo
+
+# --- misc ---
+.DS_Store

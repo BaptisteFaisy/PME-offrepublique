@@ -1,0 +1,57 @@
+[project]
+name = "publique-backend"
+version = "0.1.0"
+description = "Usine à dossiers AO — internal backend (FastAPI + RQ workers)"
+requires-python = ">=3.12"
+dependencies = [
+    # --- API layer ---
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "python-multipart>=0.0.12",   # file uploads (DCE ZIP)
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    # --- persistence ---
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",       # psycopg3, no libpq-dev needed
+    "alembic>=1.13",
+    "pgvector>=0.3",              # vector column type for RAG (M2)
+    # --- jobs / queue ---
+    "redis>=5.2",
+    "rq>=2.0",
+    # --- object storage (S3 / MinIO) ---
+    "boto3>=1.35",
+    # --- LLM ---
+    "anthropic>=0.39",
+    # --- document processing (M1) ---
+    "pymupdf>=1.24",              # native PDF text extraction
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "pytesseract>=0.3.13",        # OCR (needs the tesseract system binary)
+    "pillow>=10.4",               # render PDF pages to images for OCR
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",               # TestClient transport
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
