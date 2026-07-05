@@ -31,8 +31,10 @@ tokens itself, so it keeps working as long as the refresh token stays valid.
 ## Railway setup (2nd service, private networking)
 
 1. **New service → Deploy from repo**, same repo, and set its **Root Directory**
-   to `codex-llm-server`. Railway picks up `railway.json` (Dockerfile build,
-   `/healthz` healthcheck).
+   to `codex-llm-server`. Railway picks up `railway.json` (Dockerfile build). No
+   Railway healthcheck is configured on purpose: the server binds `::` (IPv6) for
+   private networking, which Railway's HTTP healthcheck probe can't reach — so a
+   healthcheck would wrongly fail the deploy even though the app is healthy.
 2. On this **codex-llm-server** service, set variables:
    | Variable | Value |
    |---|---|
@@ -49,9 +51,10 @@ tokens itself, so it keeps working as long as the refresh token stays valid.
    > Use this service's actual name in the hostname if you renamed it
    > (`<name>.railway.internal`). Both services must be in the **same Railway
    > project/environment** to share the private network.
-4. Deploy. Watch the codex-llm-server logs: if the Codex auth is bad you'll see
-   it exit before binding (Railway will restart it on failure). When healthy,
-   `/healthz` returns 200 and the web app's uploads will produce a Fiche AO.
+4. Deploy. Watch the codex-llm-server logs: a healthy start shows `Codex auth
+   preflight OK` then `Uvicorn running on http://[::]:18080`. If the Codex auth is
+   bad you'll see it exit before binding (Railway restarts it on failure). Once
+   it's running, the web app's uploads will produce a Fiche AO.
 
 ## Notes & caveats
 
