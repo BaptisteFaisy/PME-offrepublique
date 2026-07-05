@@ -7,10 +7,11 @@
 // upload status until it is "ready" or "failed".
 
 import { classifyPiece } from "./classify";
-import { getSettings } from "./config";
+import { getSettings, type DceSettings } from "./config";
 import { extractText } from "./extract";
 import { buildCorpus, extractFiche, type CorpusPiece } from "./fiche";
 import { evaluate } from "./gonogo";
+import { resolveAgent, resolveIntensity } from "./options";
 import {
   getUpload,
   newId,
@@ -22,9 +23,14 @@ import {
 import { extractUpload } from "./unzip";
 
 export async function processUpload(uploadId: string): Promise<void> {
-  const settings = getSettings();
   const upload = await getUpload(uploadId);
   if (!upload) return;
+
+  // Apply the agent (model) + intensity (reasoning) chosen for this upload,
+  // falling back to the env defaults for legacy records.
+  const agent = resolveAgent(upload.agent_id);
+  const reasoning = resolveIntensity(upload.intensity);
+  const settings: DceSettings = { ...getSettings(), model: agent.model, reasoning };
 
   try {
     await patchUpload(uploadId, { status: "processing", error: null, pieces: [], fiche: null });
@@ -33,7 +39,7 @@ export async function processUpload(uploadId: string): Promise<void> {
     const raw = await readRaw(uploadId);
     const files = extractUpload(raw, upload.original_filename);
     if (files.length === 0) {
-      throw new Error("Aucun document exploitable (pdf/docx/xlsx) dans l'upload.");
+      throw new Error("Aucun document exploitable (pdf/docx/xlsx/image) dans l'upload.");
     }
 
     const warnings: string[] = [];
@@ -77,7 +83,13 @@ export async function processUpload(uploadId: string): Promise<void> {
     // go/no-go (no client profile yet — that arrives with M2)
     const gonogo = evaluate(fiche, new Date(), null);
 
-    withPages.fiche = { fiche, gonogo, warnings, model: settings.model };
+    withPages.fiche = {
+      fiche,
+      gonogo,
+      warnings,
+      model: settings.model,
+      reasoning: settings.reasoning,
+    };
     withPages.status = "ready";
     withPages.error = null;
     await saveUpload(withPages);

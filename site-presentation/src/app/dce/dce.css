@@ -206,6 +206,44 @@
 /* ---------------------------------------------------------------------------
    Uploader
 --------------------------------------------------------------------------- */
+.dce .uploader-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dce .uploader-opts .field {
+  margin-bottom: 0;
+}
+
+@media (max-width: 420px) {
+  .dce .uploader-opts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dce select {
+  background: #0f1218;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.dce select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.dce select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .dce .dropzone {
   border: 1.5px dashed var(--border);
   border-radius: 10px;

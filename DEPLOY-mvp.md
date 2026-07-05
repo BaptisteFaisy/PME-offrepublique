@@ -65,8 +65,11 @@ GPT models — no per-token API bill.
 
   Either way the web service stays a single deployable; only the two env vars change.
 
-- **Scanned PDFs**: pages with little/no extractable text are flagged in the Fiche's warnings (OCR is
-  out of scope at the MVP — the page is signalled, never silently dropped).
+- **Scanned PDFs**: pages with little/no extractable text are rasterized and read by a vision-capable
+  model (OCR). The Codex-backed GPT models accept image input, so this needs no extra service — just the
+  same `DCE_LLM_BASE_URL`. Tunable via `DCE_OCR_ENABLED` (default on), `DCE_OCR_MODEL` (default `gpt-5.5`),
+  `DCE_OCR_SCALE`, `DCE_OCR_MAX_PAGES`, `DCE_OCR_REASONING`. If OCR fails on a page, it's flagged in the
+  Fiche's warnings — never silently dropped.
 - **Persistence**: the file store is fine for the 2-user MVP. If M2–M4 need relational + vector data
   (KB, RAG, isolation per client — CDC §4), the FastAPI app in `backend/` (still in the repo) is the
   path: deploy it as a second Railway service + Postgres/pgvector + Redis + S3 at that point.

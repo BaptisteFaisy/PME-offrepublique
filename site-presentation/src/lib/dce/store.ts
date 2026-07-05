@@ -28,6 +28,7 @@ export type StoredFiche = {
   gonogo: GoNoGo;
   warnings: string[];
   model: string | null;
+  reasoning: string | null;
 };
 export type StoredUpload = {
   id: string;
@@ -35,6 +36,9 @@ export type StoredUpload = {
   status: UploadStatus;
   error: string | null;
   created_at: string;
+  /** Chosen analysis options (see options.ts); null on legacy records. */
+  agent_id: string | null;
+  intensity: string | null;
   pieces: StoredPiece[];
   fiche: StoredFiche | null;
 };
@@ -55,13 +59,19 @@ async function writeRecord(rec: StoredUpload): Promise<void> {
   await fs.rename(tmp, file);
 }
 
-export async function createUpload(id: string, originalFilename: string): Promise<StoredUpload> {
+export async function createUpload(
+  id: string,
+  originalFilename: string,
+  opts: { agentId?: string; intensity?: string } = {},
+): Promise<StoredUpload> {
   const rec: StoredUpload = {
     id,
     original_filename: originalFilename,
     status: "received",
     error: null,
     created_at: new Date().toISOString(),
+    agent_id: opts.agentId ?? null,
+    intensity: opts.intensity ?? null,
     pieces: [],
     fiche: null,
   };

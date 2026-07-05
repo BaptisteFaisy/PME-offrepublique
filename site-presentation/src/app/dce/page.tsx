@@ -13,6 +13,7 @@ import {
   type Piece,
   type Source,
 } from "@/lib/api";
+import { intensityLabel } from "@/lib/dce/options";
 import { FicheView } from "./_components/fiche-view";
 import { GoNoGoBanner } from "./_components/gonogo-banner";
 import { SourceDrawer } from "./_components/source-drawer";
@@ -293,6 +294,7 @@ export default function Home() {
                     {fiche.model && (
                       <p className="muted mono" style={{ margin: "10px 0 0", fontSize: 12 }}>
                         Modèle d&apos;extraction : {fiche.model}
+                        {fiche.reasoning ? ` · intensité ${intensityLabel(fiche.reasoning)}` : ""}
                       </p>
                     )}
                   </div>

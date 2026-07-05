@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { consoleUser, unauthorized } from "@/lib/dce/guard";
+import { IMAGE_EXTS } from "@/lib/dce/extract";
+import { resolveAgent, resolveIntensity } from "@/lib/dce/options";
 import { startProcessing } from "@/lib/dce/pipeline";
 import { createUpload, newId, saveRaw } from "@/lib/dce/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED = [".zip", ".pdf", ".docx", ".xlsx"];
+const ALLOWED = [".zip", ".pdf", ".docx", ".xlsx", ...IMAGE_EXTS];
 
 // POST /dce/api/uploads — accept the DCE upload, store it, and kick off the M1
 // parse job in the background. The client polls the status endpoint until ready.
@@ -39,9 +41,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ detail: "Fichier vide" }, { status: 400 });
   }
 
+  // Chosen analysis options (agent = model, intensity = reasoning effort).
+  // resolve* validates the submitted ids and falls back to the defaults.
+  const agentRaw = form.get("agent");
+  const intensityRaw = form.get("intensity");
+  const agentId = resolveAgent(typeof agentRaw === "string" ? agentRaw : null).id;
+  const intensity = resolveIntensity(typeof intensityRaw === "string" ? intensityRaw : null);
+
   const id = newId();
   await saveRaw(id, buf);
-  await createUpload(id, name);
+  await createUpload(id, name, { agentId, intensity });
   startProcessing(id);
 
   return NextResponse.json({ upload_id: id, status: "received", job_id: id }, { status: 202 });

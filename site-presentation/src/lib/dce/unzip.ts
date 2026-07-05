@@ -1,15 +1,17 @@
 // Pipeline step 1 — recursive unzip + dedup (server-only).
 //
 // A DCE arrives as a ZIP (often with nested ZIPs) or as loose files. We walk it
-// recursively, keep only the formats we can parse (PDF/DOCX/XLSX), and drop
-// byte-identical duplicates (the same annexe shipped in several sub-folders is
-// common).
+// recursively, keep only the formats we can parse (PDF/DOCX/XLSX + image files
+// handled via OCR), and drop byte-identical duplicates (the same annexe shipped
+// in several sub-folders is common).
 
 import crypto from "node:crypto";
 
 import { unzipSync } from "fflate";
 
-const SUPPORTED = [".pdf", ".docx", ".xlsx"];
+import { IMAGE_EXTS } from "./extract";
+
+const SUPPORTED = [".pdf", ".docx", ".xlsx", ...IMAGE_EXTS];
 const MAX_ZIP_DEPTH = 8;
 
 export type ExtractedFile = {

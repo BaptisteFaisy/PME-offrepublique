@@ -26,5 +26,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     gonogo: rec.fiche.gonogo,
     warnings: rec.fiche.warnings ?? [],
     model: rec.fiche.model,
+    reasoning: rec.fiche.reasoning ?? null,
   });
 }

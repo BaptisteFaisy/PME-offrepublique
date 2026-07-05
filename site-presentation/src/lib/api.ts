@@ -98,6 +98,7 @@ export type FicheResponse = {
   gonogo: GoNoGo;
   warnings: string[];
   model: string | null;
+  reasoning: string | null;
 };
 
 export type UploadAccepted = { upload_id: string; status: string; job_id: string };
@@ -140,10 +141,15 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+/** Options chosen for one analysis run: which agent (model) and how hard it reasons. */
+export type UploadOptions = { agent?: string; intensity?: string };
+
 /** Upload a DCE (ZIP or a single PDF/DOCX/XLSX). Returns the queued job id. */
-export async function uploadDce(file: File): Promise<UploadAccepted> {
+export async function uploadDce(file: File, opts: UploadOptions = {}): Promise<UploadAccepted> {
   const form = new FormData();
   form.append("file", file, file.name);
+  if (opts.agent) form.append("agent", opts.agent);
+  if (opts.intensity) form.append("intensity", opts.intensity);
   const res = await fetch("/dce/api/uploads", { method: "POST", body: form, cache: "no-store" });
   return jsonOrThrow<UploadAccepted>(res);
 }
