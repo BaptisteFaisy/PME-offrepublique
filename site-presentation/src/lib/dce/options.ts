@@ -9,7 +9,7 @@
 //   (DCE_LLM_BASE_URL, the Codex server). Only the `model` field changes.
 // - An "intensity" maps to the OpenAI `reasoning_effort`.
 
-export type Intensity = "minimal" | "low" | "medium" | "high" | "xhigh";
+export type Intensity = "none" | "low" | "medium" | "high" | "xhigh";
 
 export type AgentOption = {
   /** Stable id stored on the upload and sent from the upload form. */
@@ -39,10 +39,12 @@ export const AGENTS: AgentOption[] = [
 
 export const DEFAULT_AGENT_ID = "gpt-5.5";
 
-/** Reasoning effort, from fastest/cheapest to deepest. "Fast" (minimal) skips
- *  most deliberation — near-instant, lowest token cost. */
+/** Reasoning effort, from fastest/cheapest to deepest. "Fast" (none) skips
+ *  deliberation entirely — near-instant, lowest token cost.
+ *  NB: the model accepts `none | low | medium | high | xhigh`; `minimal` is
+ *  rejected by gpt-5.5 (400), so it is intentionally not offered. */
 export const INTENSITIES: IntensityOption[] = [
-  { id: "minimal", label: "Fast", hint: "minimal" },
+  { id: "none", label: "Fast", hint: "none" },
   { id: "low", label: "Rapide", hint: "low" },
   { id: "medium", label: "Équilibré", hint: "medium" },
   { id: "high", label: "Poussé", hint: "high" },
