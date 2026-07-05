@@ -9,9 +9,16 @@ import path from "node:path";
 export type DceSettings = {
   /** Directory for the file-based store (uploads, pages, fiches). */
   dataDir: string;
-  /** Anthropic API key. Required for classification + Fiche AO extraction. */
-  anthropicApiKey: string;
-  /** Claude model for classification + extraction (CDC §5 picks Sonnet for cost). */
+  /** LLM API key for the OpenAI-compatible endpoint. Optional: the local Codex
+   *  server ignores it unless started with --api-key; a real key is only needed
+   *  when pointing at an authenticated endpoint (e.g. api.openai.com). */
+  apiKey: string;
+  /** Base URL of the OpenAI-compatible endpoint (must end in /v1). Defaults to
+   *  the local `openai-api-server-via-codex` server. On Railway, override this
+   *  with a reachable endpoint (DCE_LLM_BASE_URL) — 127.0.0.1 is not reachable
+   *  from the container. */
+  baseUrl: string;
+  /** Model id for classification + extraction (default: gpt-5.5). */
   model: string;
   /** Max output tokens for the extraction JSON. */
   maxTokens: number;
@@ -24,9 +31,14 @@ export type DceSettings = {
 export function getSettings(): DceSettings {
   return {
     dataDir: process.env.DCE_DATA_DIR ?? path.join(process.cwd(), ".dce-data"),
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
-    model: process.env.DCE_LLM_MODEL ?? "claude-sonnet-5",
-    maxTokens: Number(process.env.DCE_LLM_MAX_TOKENS ?? 8000),
+    // DCE_LLM_API_KEY is the provider-neutral name; ANTHROPIC_API_KEY kept as a
+    // fallback so existing deploys keep working.
+    apiKey: process.env.DCE_LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? "",
+    baseUrl: process.env.DCE_LLM_BASE_URL ?? "http://127.0.0.1:18080/v1",
+    model: process.env.DCE_LLM_MODEL ?? "gpt-5.5",
+    // xhigh reasoning burns a lot of completion tokens before the answer starts,
+    // so keep this generous — too low truncates the JSON mid-reasoning.
+    maxTokens: Number(process.env.DCE_LLM_MAX_TOKENS ?? 32000),
     ocrMinChars: Number(process.env.DCE_OCR_MIN_CHARS ?? 120),
     maxContextChars: Number(process.env.DCE_MAX_CONTEXT_CHARS ?? 350_000),
   };
