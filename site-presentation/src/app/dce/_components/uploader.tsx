@@ -140,11 +140,16 @@ export function Uploader({
           e.preventDefault();
           if (!busy) setDragOver(true);
         }}
-        onDragLeave={() => setDragOver(false)}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+        }}
         onDrop={onDrop}
         onClick={() => !busy && inputRef.current?.click()}
         role="button"
         tabIndex={0}
+        aria-disabled={busy}
+        aria-busy={busy}
+        aria-label="Sélectionner ou déposer un dossier de consultation"
         onKeyDown={(e) => {
           if ((e.key === "Enter" || e.key === " ") && !busy) inputRef.current?.click();
         }}
@@ -170,7 +175,7 @@ export function Uploader({
         )}
       </div>
 
-      {error && <p className="error" style={{ marginTop: 12 }}>{error}</p>}
+      {error && <p className="error" role="alert" style={{ marginTop: 12 }}>{error}</p>}
     </div>
   );
 }

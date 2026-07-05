@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { getPage, type PageText, type Piece, type Source } from "@/lib/api";
 
@@ -30,6 +30,8 @@ export function SourceDrawer({
   const [page, setPage] = useState<PageText | null>(null);
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(initialError === null);
+  const titleId = useId();
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!piece || source.page == null) return; // nothing fetchable (see initialError)
@@ -52,25 +54,38 @@ export function SourceDrawer({
 
   // Close on Escape.
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onClose]);
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(e) => e.stopPropagation()}>
+      <aside
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="drawer__head">
           <div>
-            <div className="drawer__file mono">{source.fichier}</div>
+            <div className="drawer__file mono" id={titleId}>{source.fichier}</div>
             <div className="muted">
               Page {source.page}
               {piece ? ` · ${piece.piece_type} · ${piece.page_count} page(s)` : ""}
             </div>
           </div>
-          <button className="btn ghost" onClick={onClose}>
+          <button ref={closeRef} className="btn ghost" type="button" onClick={onClose}>
             Fermer
           </button>
         </div>

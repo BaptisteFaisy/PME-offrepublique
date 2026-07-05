@@ -62,6 +62,7 @@ export default function Home() {
   const [activeSource, setActiveSource] = useState<Source | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeRequestRef = useRef(0);
 
   // --- auth gate -----------------------------------------------------------
   useEffect(() => {
@@ -95,13 +96,15 @@ export default function Home() {
     }
   }, []);
 
-  const loadResult = useCallback(async (uploadId: string) => {
+  const loadResult = useCallback(async (uploadId: string, requestId: number) => {
     try {
       const [f, p] = await Promise.all([getFiche(uploadId), getPieces(uploadId)]);
+      if (activeRequestRef.current !== requestId) return;
       setFiche(f);
       setPieces(p);
       setLoadState("ready");
     } catch (err) {
+      if (activeRequestRef.current !== requestId) return;
       setLoadState("error");
       setStatusMsg(err instanceof Error ? err.message : "Erreur au chargement de la Fiche AO.");
     }
@@ -111,6 +114,7 @@ export default function Home() {
   const openUpload = useCallback(
     (uploadId: string, filename: string) => {
       stopPolling();
+      const requestId = ++activeRequestRef.current;
       setSelectedId(uploadId);
       setSelectedName(filename);
       setFiche(null);
@@ -122,16 +126,18 @@ export default function Home() {
       const tick = async () => {
         try {
           const s = await getUploadStatus(uploadId);
+          if (activeRequestRef.current !== requestId) return;
           setStatusMsg(STATUS_LABEL[s.status] ?? s.status);
           if (s.status === "ready") {
             stopPolling();
-            await loadResult(uploadId);
+            await loadResult(uploadId, requestId);
           } else if (s.status === "failed") {
             stopPolling();
             setLoadState("failed");
             setStatusMsg(s.error || "L'analyse a échoué.");
           }
         } catch (err) {
+          if (activeRequestRef.current !== requestId) return;
           stopPolling();
           setLoadState("error");
           setStatusMsg(err instanceof Error ? err.message : "Erreur de suivi du job.");
@@ -152,6 +158,8 @@ export default function Home() {
   }
 
   async function onLogout() {
+    activeRequestRef.current += 1;
+    stopPolling();
     await logout();
     router.replace("/dce/login");
   }
@@ -168,18 +176,18 @@ export default function Home() {
 
   return (
     <main className="container container--wide">
-      <div className="card row">
-        <div>
+      <header className="card row app-header">
+        <div className="app-header__copy">
           <h1>Usine à dossiers AO</h1>
           <p className="muted">
             M1 — Ingestion &amp; analyse du DCE · connecté en tant que{" "}
             <span className="mono">{user}</span>
           </p>
         </div>
-        <button className="btn ghost" onClick={onLogout}>
+        <button className="btn ghost" type="button" onClick={onLogout}>
           Déconnexion
         </button>
-      </div>
+      </header>
 
       <div className="workspace">
         <div className="workspace__side">
@@ -196,8 +204,10 @@ export default function Home() {
                 {recent.map((r) => (
                   <li key={r.id}>
                     <button
+                      type="button"
                       className={`recent__item${selectedId === r.id ? " recent__item--active" : ""}`}
                       onClick={() => openUpload(r.id, r.filename)}
+                      aria-current={selectedId === r.id ? "true" : undefined}
                     >
                       <span className="recent__name">{r.filename}</span>
                       <span className="recent__date muted mono">
@@ -228,14 +238,15 @@ export default function Home() {
 
           {selectedId && (
             <>
-              <div className="card row">
-                <div>
+              <div className="card row result-header">
+                <div className="result-header__copy">
                   <strong className="mono">{selectedName}</strong>
-                  <div className="muted">{statusMsg}</div>
+                  <div className="muted" aria-live="polite">{statusMsg}</div>
                 </div>
                 {(loadState === "processing" || loadState === "error" || loadState === "failed") && (
                   <button
                     className="btn ghost"
+                    type="button"
                     onClick={() => openUpload(selectedId, selectedName)}
                   >
                     Rafraîchir
@@ -245,8 +256,8 @@ export default function Home() {
 
               {loadState === "processing" && (
                 <div className="card">
-                  <div className="spinner-row">
-                    <span className="spinner" />
+                  <div className="spinner-row" role="status">
+                    <span className="spinner" aria-hidden="true" />
                     <span className="muted">
                       Pipeline en cours : extraction texte (+OCR), classification, Fiche AO (2
                       passes) et go/no-go…
@@ -257,7 +268,7 @@ export default function Home() {
 
               {(loadState === "failed" || loadState === "error") && (
                 <div className="card">
-                  <p className="error" style={{ margin: 0 }}>
+                  <p className="error" role="alert" style={{ margin: 0 }}>
                     {statusMsg}
                   </p>
                 </div>

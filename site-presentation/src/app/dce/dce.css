@@ -12,6 +12,7 @@
   --ok: #37b24d;
   --warn: #f08c00;
   --accent: #4c7dff;
+  --panel-raised: #1b1f28;
 
   min-height: 100vh;
   background: var(--bg);
@@ -19,6 +20,8 @@
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.5;
+  color-scheme: dark;
+  width: 100%;
 }
 
 .dce *,
@@ -35,6 +38,7 @@
   max-width: 880px;
   margin: 0 auto;
   padding: 32px 20px;
+  width: 100%;
 }
 
 .dce .card {
@@ -43,6 +47,12 @@
   border-radius: 10px;
   padding: 20px 22px;
   margin-bottom: 16px;
+}
+
+.dce button,
+.dce input,
+.dce select {
+  font: inherit;
 }
 
 .dce .pill {
@@ -99,6 +109,17 @@
   gap: 16px;
 }
 
+.dce .app-header__copy,
+.dce .result-header__copy,
+.dce .workspace__main {
+  min-width: 0;
+}
+
+.dce .app-header__copy p,
+.dce .result-header__copy strong {
+  overflow-wrap: anywhere;
+}
+
 .dce .field {
   display: flex;
   flex-direction: column;
@@ -126,6 +147,14 @@
   border-color: var(--accent);
 }
 
+.dce input:focus-visible,
+.dce select:focus-visible,
+.dce button:focus-visible,
+.dce .dropzone:focus-visible {
+  outline: 2px solid #8eaeff;
+  outline-offset: 2px;
+}
+
 .dce .btn {
   background: var(--accent);
   color: #fff;
@@ -135,6 +164,12 @@
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.dce .btn:not(:disabled):active {
+  transform: translateY(1px);
 }
 
 .dce .btn:disabled {
@@ -163,7 +198,7 @@
 
 .dce .workspace {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -171,6 +206,11 @@
 .dce .workspace__side {
   position: sticky;
   top: 16px;
+}
+
+.dce .workspace__side,
+.dce .workspace__main {
+  min-width: 0;
 }
 
 @media (max-width: 860px) {
@@ -208,7 +248,7 @@
 --------------------------------------------------------------------------- */
 .dce .uploader-opts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -232,6 +272,8 @@
   font-size: 14px;
   font-family: inherit;
   cursor: pointer;
+  width: 100%;
+  min-width: 0;
 }
 
 .dce select:focus {
@@ -253,6 +295,7 @@
   color: var(--text);
   transition: border-color 0.15s, background 0.15s;
   background: #0f1218;
+  overflow-wrap: anywhere;
 }
 
 .dce .dropzone:hover,
@@ -297,6 +340,10 @@
 .dce .recent__item--active {
   background: rgba(76, 125, 255, 0.1);
   border-color: rgba(76, 125, 255, 0.35);
+}
+
+.dce .recent__item--active:hover {
+  background: rgba(76, 125, 255, 0.14);
 }
 
 .dce .recent__name {
@@ -472,6 +519,7 @@
 }
 .dce .frow__src {
   justify-self: end;
+  min-width: 0;
 }
 
 .dce ul.flist {
@@ -492,6 +540,10 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+.dce .flist__item > * {
+  min-width: 0;
 }
 .dce .flist__item--col {
   flex-direction: column;
@@ -578,6 +630,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -626,7 +679,8 @@
 .dce .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: flex-end;
   z-index: 50;
@@ -641,6 +695,10 @@
   flex-direction: column;
   box-shadow: -12px 0 40px rgba(0, 0, 0, 0.4);
   animation: dce-slide-in 0.16s ease-out;
+}
+
+.dce .drawer__head > div {
+  min-width: 0;
 }
 
 @keyframes dce-slide-in {
@@ -691,4 +749,51 @@
   border-radius: 8px;
   padding: 14px;
   margin: 0;
+}
+
+@media (max-width: 620px) {
+  .dce .container {
+    padding: 16px 12px 28px;
+  }
+
+  .dce .card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .dce .app-header,
+  .dce .result-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dce .app-header .btn {
+    width: 100%;
+  }
+
+  .dce .gonogo__head,
+  .dce .reasons__item,
+  .dce .flist__item,
+  .dce .crit__head,
+  .dce ul.pieces li {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dce .frow__src {
+    justify-self: start;
+  }
+
+  .dce .src-chip {
+    max-width: 100%;
+  }
+
+  .dce .drawer {
+    width: 100%;
+  }
+
+  .dce .drawer__head,
+  .dce .drawer__body {
+    padding: 14px;
+  }
 }
