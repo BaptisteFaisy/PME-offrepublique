@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     llm_effort: str = "medium"
     llm_max_tokens: int = 8000
 
+    # Embeddings for M2 RAG. The database schema is fixed at 1536 dimensions.
+    # "openai" is the production provider; "deterministic" is only for tests/dev
+    # paths that need repeatable vectors without external calls.
+    embedding_provider: str = "openai"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    embedding_batch_size: int = 64
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+
     # OCR (Tesseract). A PDF page with fewer than ``ocr_min_chars`` of native
     # text is treated as an image page and re-read via OCR.
     ocr_lang: str = "fra"

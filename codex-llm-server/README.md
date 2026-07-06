@@ -56,6 +56,47 @@ tokens itself, so it keeps working as long as the refresh token stays valid.
    bad you'll see it exit before binding (Railway restarts it on failure). Once
    it's running, the web app's uploads will produce a Fiche AO.
 
+## Plusieurs comptes ChatGPT (failover automatique sur limite)
+
+Un serveur = **un** compte ChatGPT (un seul `--auth-json`). Quand ce compte
+atteint sa limite d'usage Codex, l'API renvoie **429** et l'analyse s'arrête. Pour
+enchaîner sur un autre compte, on déploie **une instance par compte** et le web
+service bascule tout seul sur la suivante en cas de 429 (repli côté client, voir
+`site-presentation/src/lib/dce/llm.ts`).
+
+1. **Déploie une 2ᵉ instance** de ce service (même repo, Root Directory
+   `codex-llm-server`). Donne-lui son propre `CODEX_AUTH_JSON` (compte B) et le
+   **même** `LLM_API_KEY` que la 1ʳᵉ. Pin son `PORT` (ex. `18080`).
+2. **Génère l'auth du compte B** dans un home isolé, sans toucher au compte A :
+
+   ```powershell
+   # depuis codex-llm-server/ — connecte-toi au compte B dans le navigateur
+   ./refresh-dce.ps1 -Slot b -Service <nom-du-service-b>
+   ```
+
+   `-Slot b` épingle `CODEX_HOME` sur `~/.codex-dce-b`. `-Service` est
+   **obligatoire** avec `-Slot` : dès que plusieurs services partagent le Root
+   Directory `codex-llm-server`, l'auto-détection ne peut plus les distinguer.
+3. **Sur le web service** (`site-presentation`), remplace `DCE_LLM_BASE_URL` par la
+   **liste** ordonnée des endpoints (le 1ᵉʳ est prioritaire) :
+
+   | Variable | Value |
+   |---|---|
+   | `DCE_LLM_BASE_URLS` | `http://codex-llm-server.railway.internal:18080/v1,http://codex-llm-server-b.railway.internal:18080/v1` |
+   | `DCE_LLM_API_KEY` | *le `LLM_API_KEY` commun aux deux services* |
+
+   `DCE_LLM_BASE_URLS` (pluriel, séparé par des virgules) prime ; `DCE_LLM_BASE_URL`
+   (singulier) reste un repli si la liste est absente. Ajoute autant d'URLs que de
+   comptes.
+
+**Comportement :** sur un 429, l'endpoint épuisé est mis en *cooldown*
+(`DCE_LLM_COOLDOWN_MS`, défaut 15 min, ou l'en-tête `Retry-After` s'il est fourni)
+et les appels suivants partent directement sur le compte disponible. Quand **tous**
+les comptes sont au taquet, l'erreur renvoyée le dit explicitement. Les erreurs qui
+ne sont pas des limites (401, réseau, JSON invalide) **ne** déclenchent pas de
+bascule — inutile de brûler un autre compte pour un problème qui n'est pas une
+limite.
+
 ## Notes & caveats
 
 - **Bind host:** defaults to `::` (IPv6) because Railway private DNS is IPv6. If

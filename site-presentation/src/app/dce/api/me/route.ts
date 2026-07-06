@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE, userFromToken } from "@/lib/auth";
+import { getSettings } from "@/lib/dce/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,5 +11,6 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json({ user });
+  // Display-only label of the Codex account powering the LLM backend.
+  return NextResponse.json({ user, codexAccount: getSettings().codexAccount });
 }

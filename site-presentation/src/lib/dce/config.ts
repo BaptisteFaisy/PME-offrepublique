@@ -18,8 +18,14 @@ export type DceSettings = {
   /** Base URL of the OpenAI-compatible endpoint (must end in /v1). Defaults to
    *  the local `openai-api-server-via-codex` server. On Railway, override this
    *  with a reachable endpoint (DCE_LLM_BASE_URL) — 127.0.0.1 is not reachable
-   *  from the container. */
+   *  from the container. Always equals baseUrls[0]. */
   baseUrl: string;
+  /** All OpenAI-compatible endpoints to use, in priority order. Each is a
+   *  separate codex-llm-server instance backed by a distinct ChatGPT account, so
+   *  when one hits its Codex usage limit (429) the LLM layer fails over to the
+   *  next (see llm.ts). Set DCE_LLM_BASE_URLS to a comma-separated list to enable
+   *  multi-account; otherwise this is just [baseUrl]. */
+  baseUrls: string[];
   /** Model id for classification + extraction (default: gpt-5.5). Overridden
    *  per-upload by the "agent" chosen in the UI (see options.ts). */
   model: string;
@@ -44,15 +50,36 @@ export type DceSettings = {
   ocrMaxTokens: number;
   /** Cap the page-anchored corpus sent to the LLM (cost guard on huge DCE). */
   maxContextChars: number;
+  /** Display-only label of the Codex/ChatGPT account that powers the LLM backend
+   *  (the codex-llm-server's CODEX_AUTH_JSON). The web service can't read that
+   *  auth itself, so set DCE_CODEX_ACCOUNT to match what you pushed to Railway.
+   *  Empty => the UI simply omits the "compte utilisé" line. */
+  codexAccount: string;
 };
 
+/** Parse the endpoint list: DCE_LLM_BASE_URLS (comma/newline separated) wins;
+ *  otherwise fall back to the single DCE_LLM_BASE_URL (or the local default).
+ *  Returns a non-empty list; baseUrls[0] is the primary endpoint. */
+function resolveBaseUrls(): string[] {
+  const primary = process.env.DCE_LLM_BASE_URL ?? "http://127.0.0.1:18080/v1";
+  const listed = (process.env.DCE_LLM_BASE_URLS ?? "")
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // De-dupe while preserving order (a repeated URL adds no failover value).
+  const urls = listed.length ? listed : [primary];
+  return [...new Set(urls)];
+}
+
 export function getSettings(): DceSettings {
+  const baseUrls = resolveBaseUrls();
   return {
     dataDir: process.env.DCE_DATA_DIR ?? path.join(process.cwd(), ".dce-data"),
     // DCE_LLM_API_KEY is the provider-neutral name; ANTHROPIC_API_KEY kept as a
     // fallback so existing deploys keep working.
     apiKey: process.env.DCE_LLM_API_KEY ?? process.env.OPENAI_API_KEY ?? "",
-    baseUrl: process.env.DCE_LLM_BASE_URL ?? "http://127.0.0.1:18080/v1",
+    baseUrl: baseUrls[0],
+    baseUrls,
     model: process.env.DCE_LLM_MODEL ?? "gpt-5.5",
     // Default intensity; a per-upload choice overrides this in the pipeline.
     reasoning: resolveIntensity(process.env.DCE_LLM_REASONING),
@@ -67,5 +94,6 @@ export function getSettings(): DceSettings {
     ocrMaxPages: Number(process.env.DCE_OCR_MAX_PAGES ?? 40),
     ocrMaxTokens: Number(process.env.DCE_OCR_MAX_TOKENS ?? 8000),
     maxContextChars: Number(process.env.DCE_MAX_CONTEXT_CHARS ?? 350_000),
+    codexAccount: process.env.DCE_CODEX_ACCOUNT ?? "",
   };
 }

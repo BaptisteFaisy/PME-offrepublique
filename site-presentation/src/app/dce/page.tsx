@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -46,6 +47,7 @@ export default function Home() {
   const router = useRouter();
   const [authState, setAuthState] = useState<"checking" | "authed">("checking");
   const [user, setUser] = useState<string | null>(null);
+  const [codexAccount, setCodexAccount] = useState<string>("");
 
   // Lazy init from localStorage (client-only; the list is only ever rendered
   // after auth, so there is no SSR/hydration mismatch).
@@ -67,8 +69,9 @@ export default function Home() {
   // --- auth gate -----------------------------------------------------------
   useEffect(() => {
     getMe()
-      .then((u) => {
-        setUser(u);
+      .then((m) => {
+        setUser(m.user);
+        setCodexAccount(m.codexAccount);
         setAuthState("authed");
       })
       .catch(() => router.replace("/dce/login"));
@@ -87,6 +90,31 @@ export default function Home() {
       }
       return next;
     });
+  }
+
+  function forgetUpload(id: string) {
+    setRecent((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      } catch {
+        /* storage may be unavailable; non-fatal */
+      }
+      return next;
+    });
+    // If we just removed the DCE currently open, clear the workspace and stop
+    // any in-flight polling so it doesn't keep loading a dismissed entry.
+    if (selectedId === id) {
+      activeRequestRef.current += 1;
+      stopPolling();
+      setSelectedId(null);
+      setSelectedName("");
+      setFiche(null);
+      setPieces([]);
+      setActiveSource(null);
+      setLoadState("idle");
+      setStatusMsg("");
+    }
   }
 
   const stopPolling = useCallback(() => {
@@ -183,10 +211,20 @@ export default function Home() {
             M1 — Ingestion &amp; analyse du DCE · connecté en tant que{" "}
             <span className="mono">{user}</span>
           </p>
+          {codexAccount && (
+            <p className="muted" style={{ margin: "2px 0 0" }}>
+              Compte Codex utilisé : <span className="mono">{codexAccount}</span>
+            </p>
+          )}
         </div>
-        <button className="btn ghost" type="button" onClick={onLogout}>
-          Déconnexion
-        </button>
+        <div className="kb-actions">
+          <Link className="btn ghost" href="/dce/kb">
+            KB clients
+          </Link>
+          <button className="btn ghost" type="button" onClick={onLogout}>
+            Déconnexion
+          </button>
+        </div>
       </header>
 
       <div className="workspace">
@@ -202,7 +240,7 @@ export default function Home() {
             ) : (
               <ul className="recent">
                 {recent.map((r) => (
-                  <li key={r.id}>
+                  <li key={r.id} className="recent__row">
                     <button
                       type="button"
                       className={`recent__item${selectedId === r.id ? " recent__item--active" : ""}`}
@@ -218,6 +256,15 @@ export default function Home() {
                           minute: "2-digit",
                         })}
                       </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="recent__remove"
+                      onClick={() => forgetUpload(r.id)}
+                      aria-label={`Retirer ${r.filename} des DCE récents`}
+                      title="Retirer de la liste"
+                    >
+                      <span aria-hidden="true">×</span>
                     </button>
                   </li>
                 ))}
